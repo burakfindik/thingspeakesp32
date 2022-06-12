@@ -24,7 +24,7 @@ Böylelikle Arduino IDE'mize tanımlı olan Nodemcu-32s kartını seçebiliriz.
   
 
 
-ESP32s'i USB portuna bağladıktan sonra [ESP32s Kodu ile](https://github.com/burakfindik/raspberrythingspeakesp32/blob/main/ESP32s) Arduino IDE'den ESP32'yi programlıyoruz.
+ESP32s'i USB portuna bağladıktan sonra [ESP32s Kodu ile](https://github.com/burakfindik/thingspeakesp32/blob/main/ESP32s_kod) Arduino IDE'den ESP32'yi programlıyoruz.
  
 
  
