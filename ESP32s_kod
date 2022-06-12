@@ -1,0 +1,133 @@
+#include <DHT.h>  // Including library for dht
+#include <WiFi.h>
+#include "ThingSpeak.h"
+#include "MHZ19.h"
+#include "SoftwareSerial.h"
+ 
+String apiKey = "xxxxxxxxxxxxxxxxx";     //  Buraya ThingSpeak.com'un size sağladığı API anahtarını giriniz.
+ 
+
+const char *ssid =  "xxxxxxxxxxxxxx";     // Buraya Wi-Fi ID'nizi giriniz.
+const char *pass =  "xxxxxxxx";           // Buraya Wi-Fi şifrenizi giriniz.
+
+const char* server = "api.thingspeak.com";
+ 
+#define DHTPIN 32          
+#define DHTTYPE DHT22  
+DHT dht(DHTPIN, DHTTYPE);
+
+int measurePin = 33; //PM2.5 Analog 
+int ledPower = 21;   //PM2.5 led sürücüsü
+
+int samplingTime = 280;
+int deltaTime = 40;
+int sleepTime = 9680;
+
+float voMeasured = 0;
+float calcVoltage = 0;
+float dustDensity = 0;
+int CO2;
+SoftwareSerial co2Serial(16, 17);
+WiFiClient client;
+MHZ19 myMHZ19; 
+ 
+void setup() 
+{
+       Serial.begin(9600);
+       delay(10);
+       dht.begin();
+       co2Serial.begin(9600);
+       myMHZ19.begin(co2Serial);
+       pinMode(ledPower,OUTPUT);
+ 
+       Serial.println("Connecting to ");
+       Serial.println(ssid);
+ 
+ 
+       WiFi.begin(ssid, pass);
+ 
+      while (WiFi.status() != WL_CONNECTED) 
+     {
+            delay(500);
+            Serial.print(".");
+     }
+      Serial.println("");
+      Serial.println("WiFi connected");
+ 
+}
+ 
+void loop() 
+{
+  
+      float h = dht.readHumidity();
+      float t = dht.readTemperature();
+       
+       CO2 = myMHZ19.getCO2();
+       CO2=map(CO2, 0, 3000, 0, 255);
+       digitalWrite(ledPower,LOW); // led sürücüsü üzerindeki gücü ayarlar.
+       delayMicroseconds(samplingTime);
+       voMeasured = analogRead(measurePin); // Toz sensörünü okur.
+       delayMicroseconds(deltaTime);
+       digitalWrite(ledPower,HIGH); // led sürücüsü üzerindeki gücü ayarlar.
+       delayMicroseconds(sleepTime);
+       
+
+
+  calcVoltage = voMeasured * (5.0 / 1024.0);
+  dustDensity = (170 * calcVoltage - 0.1);
+
+  
+  
+      
+              if (isnan(h) || isnan(t)) 
+                 {
+                     Serial.println("Failed to read from DHT sensor!");
+                      return;
+                 }
+ 
+                         if (client.connect(server,80))   //   "184.106.153.149" or api.thingspeak.com
+                      {  
+                            
+                             String postStr = apiKey;
+                             postStr +="&field1=";
+                             postStr += String(t);
+                             postStr +="&field2=";
+                             postStr += String(h);
+                             postStr +="&field3=";
+                             postStr += String(dustDensity);
+                             postStr +="&field4=";
+                             postStr += String(CO2);
+                             postStr += "\r\n\r\n";
+ 
+                             client.print("POST /update HTTP/1.1\n");
+                             client.print("Host: api.thingspeak.com\n");
+                             client.print("Connection: close\n");
+                             client.print("X-THINGSPEAKAPIKEY: "+apiKey+"\n");
+                             client.print("Content-Type: application/x-www-form-urlencoded\n");
+                             client.print("Content-Length: ");
+                             client.print(postStr.length());
+                             client.print("\n\n");
+                             client.print(postStr);
+ 
+                             Serial.print("Temperature: ");
+                             Serial.print(t);
+                             Serial.println(" degrees Celcius: ");
+                             Serial.print("Humidity: ");
+                             Serial.println(h);
+                             
+                        }
+        
+
+          Serial.print("CO2: ");
+          Serial.println(CO2);
+ 
+       
+          Serial.print("PM2.5: ");
+          Serial.println(dustDensity); // ug/m3
+          Serial.println("%. Send to Thingspeak.");
+          Serial.println(" --------------------------- ");
+        
+  
+  // ThingSpeak.com 15 sn periyotla veri alır.
+  delay(1000);
+}
